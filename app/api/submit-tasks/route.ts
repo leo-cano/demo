@@ -18,8 +18,21 @@ export async function getIdToken(targetAudience: string): Promise<string> {
   return authHeader.replace(/^Bearer\s+/, '');
 }
 
+// Configurar límites para esta ruta
+export const maxDuration = 60; // 60 segundos
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
+    // Verificar tamaño del contenido
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) { // 50MB
+      return NextResponse.json(
+        { error: "El archivo es demasiado grande. Tamaño máximo: 50MB" },
+        { status: 413 },
+      )
+    }
+
     const payload = await request.json()
 
     if (!payload.source_base64 || !payload.format || !Array.isArray(payload.tasks)) {
@@ -52,15 +65,17 @@ export async function POST(request: NextRequest) {
         )
       }
       console.log("[API] Usando API_KEY como fallback:", idToken)
-      return 
       // Usar API_KEY como fallback
       const response = await fetch(`${API_URL}/api/sources`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${API_KEY}`,
+          "Content-Length": Buffer.byteLength(JSON.stringify(payload)).toString(),
         },
         body: JSON.stringify(payload),
+        // Aumentar timeout para requests grandes
+        signal: AbortSignal.timeout(120000), // 2 minutos
       })
 
       const data = await response.json()
@@ -77,8 +92,11 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${idToken}`,
+        "Content-Length": Buffer.byteLength(JSON.stringify(payload)).toString(),
       },
       body: JSON.stringify(payload),
+      // Aumentar timeout para requests grandes
+      signal: AbortSignal.timeout(120000), // 2 minutos
     })
 
     const data = await response.json()
@@ -90,6 +108,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data)
   } catch (error) {
     console.error("[API] Error:", error)
+    
+    // Manejar específicamente errores de tamaño
+    if (error instanceof Error) {
+      if (error.message.includes('PayloadTooLargeError') || error.message.includes('413')) {
+        return NextResponse.json(
+          { error: "El archivo es demasiado grande. Intenta con un archivo más pequeño o comprime las imágenes." },
+          { status: 413 },
+        )
+      }
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        return NextResponse.json(
+          { error: "La solicitud tardó demasiado tiempo. Intenta con un archivo más pequeño." },
+          { status: 408 },
+        )
+      }
+    }
+    
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Error interno del servidor" },
       { status: 500 },

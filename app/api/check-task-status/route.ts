@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
       }
       // Usar API_KEY como fallback
  console.log(idToken)
-      return
 
       const response = await fetch(`${API_URL}/api/tasks/${taskId}`, {
         method: "GET",

@@ -19,11 +19,18 @@ const ACTIVITY_TYPES = [
   "complete_phrase"
 ]
 
+const DIFFICULTY_LEVELS = [
+  { value: "easy", label: "Fácil" },
+  { value: "medium", label: "Medio" },
+  { value: "hard", label: "Difícil" }
+]
+
 export default function TaskBuilder({ type, value, onChange }: TaskBuilderProps) {
   const [newItem, setNewItem] = useState("")
   const [selectedActivityType, setSelectedActivityType] = useState("multiple_choice_checkbox")
   const [quantity, setQuantity] = useState("5")
   const [selectedConcepts, setSelectedConcepts] = useState<string[]>([])
+  const [difficulty, setDifficulty] = useState("medium")
 
   if (type === "concepts") {
     return (
@@ -90,6 +97,7 @@ export default function TaskBuilder({ type, value, onChange }: TaskBuilderProps)
         activity_type: selectedActivityType,
         quantity: Number.parseInt(quantity) || 5,
         concepts: selectedConcepts,
+        difficulty: difficulty,
       },
     }
 
@@ -97,6 +105,7 @@ export default function TaskBuilder({ type, value, onChange }: TaskBuilderProps)
     setSelectedConcepts([])
     setQuantity("5")
     setSelectedActivityType("multiple_choice_checkbox")
+    setDifficulty("medium")
   }
 
   return (
@@ -121,6 +130,22 @@ export default function TaskBuilder({ type, value, onChange }: TaskBuilderProps)
         <div>
           <label className="text-sm font-medium text-foreground block mb-2">Cantidad de Preguntas</label>
           <Input type="number" min="1" max="50" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground block mb-2">Dificultad</label>
+          <Select value={difficulty} onValueChange={setDifficulty}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DIFFICULTY_LEVELS.map((level) => (
+                <SelectItem key={level.value} value={level.value}>
+                  {level.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div>
@@ -179,7 +204,7 @@ export default function TaskBuilder({ type, value, onChange }: TaskBuilderProps)
                   Task {idx + 1}: {task.config.activity_type}
                 </p>
                 <p className="text-muted-foreground">
-                  {task.config.quantity} preguntas - Conceptos: {task.config.concepts.join(", ")}
+                  {task.config.quantity} preguntas - Dificultad: {DIFFICULTY_LEVELS.find(d => d.value === task.config.difficulty)?.label || 'Medio'} - Conceptos: {task.config.concepts.join(", ")}
                 </p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => onChange(value.filter((_, i) => i !== idx))}>
